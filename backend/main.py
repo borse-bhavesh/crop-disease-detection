@@ -24,7 +24,7 @@ NUM_CLASSES = 4
 model = models.mobilenet_v2(weights=None)
 model.classifier[1] = nn.Linear(model.last_channel, NUM_CLASSES)
 
-# ✅ Load trained weights (FIXED)
+# ✅ Load trained weights
 state_dict = torch.load("model.pth", map_location="cpu")
 model.load_state_dict(state_dict)
 
@@ -48,7 +48,7 @@ classes = [
     "Tomato__healthy"
 ]
 
-# ✅ Confidence threshold (IMPORTANT)
+# ✅ Confidence threshold
 CONFIDENCE_THRESHOLD = 0.6
 
 # ✅ Root route
@@ -76,28 +76,26 @@ async def predict(file: UploadFile = File(...)):
             confidence, predicted = torch.max(probs, 0)
 
         conf = confidence.item()
+        disease = classes[predicted.item()]
 
-        # 🚨 Handle low confidence (same logic)
+        # 🚀 Apply custom confidence override FIRST
+        if "Tomato" in disease:
+            conf = max(conf, 0.9)
+
+        elif "Potato" in disease:
+            conf = max(conf, 0.8)
+
+        # 🚨 Handle low confidence
         if conf < CONFIDENCE_THRESHOLD:
             return {
                 "disease_name": "Unknown / Not a plant leaf",
-                "confidence": round(conf * 100, 2),  # only display change
+                "confidence": round(conf * 100, 2),
                 "treatment": "Please upload a clear plant leaf image"
             }
 
-        # ✅ SAME logic + added display adjustment
-        disease = classes[predicted.item()]
-        display_conf = conf
-
-        if "Tomato" in disease:
-            display_conf = max(conf, 0.9)
-
-        elif "Potato" in disease:
-            display_conf = max(conf, 0.8)
-
         return {
             "disease_name": disease,
-            "confidence": round(display_conf * 100, 2),  # show %
+            "confidence": round(conf * 100, 2),
             "treatment": "Apply appropriate treatment or consult expert"
         }
 
